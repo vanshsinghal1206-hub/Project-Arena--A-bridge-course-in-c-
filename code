@@ -1,0 +1,238 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+typedef union {
+    int hunger;
+    int energy;
+} Status;
+
+typedef struct {
+    char name[30];
+    int level;
+    char mode;
+    Status status;
+} Pet;
+
+void createPet(Pet **pets, int *count, int *capacity);
+void showPets(Pet *pets, int count, int my);
+int pickPet(int count);
+void carePet(Pet *p);
+void trainPet(Pet *p);
+void battle(Pet *pets, int count, int my);
+void autoPlay(Pet *pets, int count, int my);
+int trainingPower(int base, int days);
+int getScore(Pet *p);
+Pet *strongestPet(Pet *pets, int count);
+int askMore(char msg[]);
+
+int main() {
+    Pet start[4] = {
+        {"Dragon", 5, 'H', {60}},
+        {"Robot",  4, 'E', {80}},
+        {"Ninja",  3, 'H', {40}},
+        {"Wolf",   6, 'E', {50}}
+    };
+
+    int capacity = 4, count = 4, choice;
+    int my = -1;
+    srand(time(NULL));
+
+    Pet *pets = (Pet *)malloc(capacity * sizeof(Pet));
+    for (int i = 0; i < count; i++)
+        pets[i] = start[i];
+
+    do {
+        printf("\n===== POCKET PET ARENA =====\n");
+        if (my >= 0)
+            printf("Tumhara pet: %s (Level %d)\n", (pets + my)->name, (pets + my)->level);
+        else
+            printf("Tumhara pet: abhi chuna nahi\n");
+        printf("1.Naya-Pet-Banao 2.Show 3.Mera-Pet-Chuno 4.Care\n");
+        printf("5.Train 6.Arena 7.Strongest 8.Exit\n");
+        printf("Choice (example: 3): ");
+        scanf("%d", &choice);
+
+        if (choice == 1) {
+            createPet(&pets, &count, &capacity);
+
+        } else if (choice == 2) {
+            showPets(pets, count, my);
+
+        } else if (choice == 3) {
+            showPets(pets, count, my);
+            int i = pickPet(count);
+            if (i >= 0) {
+                my = i;
+                printf("%s ab tumhara pet hai!\n", (pets + my)->name);
+            }
+
+        } else if (choice >= 4 && choice <= 6 && my < 0) {
+            printf("Pehle option 3 se apna pet chuno!\n");
+
+        } else if (choice == 4) {
+            do {
+                carePet(pets + my);
+                autoPlay(pets, count, my);
+            } while (askMore("Aur care karni hai?"));
+
+        } else if (choice == 5) {
+            do {
+                trainPet(pets + my);
+                autoPlay(pets, count, my);
+            } while (askMore("Aur train karna hai?"));
+
+        } else if (choice == 6) {
+            do {
+                battle(pets, count, my);
+                autoPlay(pets, count, my);
+            } while (askMore("Dobara ladna hai?"));
+
+        } else if (choice == 7) {
+            Pet *p = strongestPet(pets, count);
+            printf("Strongest: %s (Level %d)\n", p->name, p->level);
+        }
+    } while (choice != 8);
+
+    free(pets);
+    return 0;
+}
+
+void createPet(Pet **pets, int *count, int *capacity) {
+    if (*count == *capacity) {
+        *capacity = *capacity * 2;
+        *pets = (Pet *)realloc(*pets, *capacity * sizeof(Pet));
+    }
+
+    Pet *p = *pets + *count;
+    int m;
+
+    printf("Pet ka naam (example: Tiger): ");
+    scanf("%29s", p->name);
+    printf("Level (example: 5): ");
+    scanf("%d", &p->level);
+    printf("Status chuno (1 = Hunger, 2 = Energy): ");
+    scanf("%d", &m);
+
+    if (m == 1) {
+        p->mode = 'H';
+        printf("Hunger %% (example: 60): ");
+        scanf("%d", &p->status.hunger);
+    } else {
+        p->mode = 'E';
+        printf("Energy %% (example: 80): ");
+        scanf("%d", &p->status.energy);
+    }
+    (*count)++;
+    printf("%s ban gaya!\n", p->name);
+}
+
+void showPets(Pet *pets, int count, int my) {
+    for (int i = 0; i < count; i++) {
+        Pet *p = pets + i;
+        printf("%d. %s | Level %d | ", i + 1, p->name, p->level);
+        if (p->mode == 'H')
+            printf("Hunger %d%%", p->status.hunger);
+        else
+            printf("Energy %d%%", p->status.energy);
+        if (i == my) printf("  <- TUMHARA PET");
+        printf("\n");
+    }
+}
+
+int pickPet(int count) {
+    int n;
+    printf("Pet number (1 se %d, example: 1): ", count);
+    scanf("%d", &n);
+    if (n < 1 || n > count) {
+        printf("Galat number\n");
+        return -1;
+    }
+    return n - 1;
+}
+
+void carePet(Pet *p) {
+    int c;
+    printf("%s ke saath kya karein?\n", p->name);
+    printf("1. Feed (khana khilao)\n2. Play (saath khelo)\n");
+    printf("Choice (example: 1): ");
+    scanf("%d", &c);
+
+    if (c == 1 && p->mode == 'H') {
+        p->status.hunger -= 20;
+        if (p->status.hunger < 0) p->status.hunger = 0;
+        printf("Yummy! %s ne khana khaya. Hunger: %d%%\n", p->name, p->status.hunger);
+    } else if (c == 2 && p->mode == 'E') {
+        p->status.energy += 20;
+        if (p->status.energy > 100) p->status.energy = 100;
+        printf("Maza aaya! %s ke saath khela. Energy: %d%%\n", p->name, p->status.energy);
+    } else if (c == 1 || c == 2) {
+        printf("%s ko iski zaroorat nahi, isko %s karo.\n",
+               p->name, p->mode == 'H' ? "Feed" : "Play");
+    } else {
+        printf("Galat choice\n");
+    }
+}
+
+void trainPet(Pet *p) {
+    int days;
+    printf("Kitne din train karein (example: 3): ");
+    scanf("%d", &days);
+    p->level = trainingPower(p->level * 10, days) / 10;
+    printf("%s ka naya level: %d\n", p->name, p->level);
+}
+
+void battle(Pet *pets, int count, int my) {
+    int opp;
+    do {
+        opp = rand() % count;
+    } while (opp == my);
+
+    Pet *me = pets + my;
+    Pet *foe = pets + opp;
+    int s1 = getScore(me) + rand() % 15;
+    int s2 = getScore(foe) + rand() % 15;
+
+    printf("%s (score %d)  VS  %s (score %d)\n", me->name, s1, foe->name, s2);
+    if (s1 > s2) {
+        printf("Tum jeet gaye! %s ka level +1\n", me->name);
+        me->level++;
+    } else if (s2 > s1) {
+        printf("Computer ka %s jeet gaya!\n", foe->name);
+        foe->level++;
+    } else {
+        printf("Draw!\n");
+    }
+}
+
+void autoPlay(Pet *pets, int count, int my) {
+    for (int i = 0; i < count; i++)
+        if (i != my && rand() % 2 == 0)
+            (pets + i)->level++;
+}
+
+int trainingPower(int base, int days) {
+    if (days <= 0) return base;
+    return 10 + trainingPower(base, days - 1);
+}
+
+int getScore(Pet *p) {
+    if (p->mode == 'E')
+        return p->level * 10 + p->status.energy;
+    return p->level * 10 + (100 - p->status.hunger);
+}
+
+Pet *strongestPet(Pet *pets, int count) {
+    Pet *best = pets;
+    for (int i = 1; i < count; i++)
+        if ((pets + i)->level > best->level)
+            best = pets + i;
+    return best;
+}
+
+int askMore(char msg[]) {
+    int a;
+    printf("%s (1 = haan, 0 = main menu): ", msg);
+    scanf("%d", &a);
+    return a == 1;
+}
